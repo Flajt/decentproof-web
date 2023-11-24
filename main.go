@@ -8,9 +8,8 @@ import (
 func main() {
 	fs := http.FileServer(http.Dir("./static"))
 	http.Handle("/", fs)
-
-	log.Print("Listening on :3000...")
-	err := http.ListenAndServe(":3000", nil)
+	log.Print("Listening on :8000...")
+	err := http.ListenAndServe(":8000", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
