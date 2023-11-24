@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="verify.css">
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link rel="stylesheet"
+          href="https://fonts.bunny.net/css?family=Lora">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/mediainfo.js@0.2.1/dist/umd/index.min.js" integrity="sha256-BSVCLCBks6tN2AfVH+D720cuAoMicyiQyBLzYYuONe4=" crossorigin="anonymous"></script>    <title>Document</title>
+</head>
+<body>
+    <h1>Verify your files</h1>
+    <main>
+        <noscript>
+            <p>Decentproof requires JavaScript to work. Please enable it in your browser settings.</p>
+        </noscript>
+        <div id="bounding-box">
+            <label for="file-upload" class="file-upload-label" aria-label="File Upload filed">
+                Click to upload a file
+            </label>
+            <input type="file" name="file" id="file-upload" accept="image/png, audio/aac,audio/mp3,video/mp4,.mkv,.x-matroska">
+        </div>
+        <div id="result">
+            <p>Hash is valid:  <div id="valid-hash">&cross;</div></p>
+            <p>Location embedded: <div id="location-embedded">&cross;</div> </p>
+            <p>Signature verified: <div id="valid-sig">&cross;</div></p>
+    </main>
+</body>
+</html>
+
+<script>
+     const validHash = document.getElementById("valid-hash");
+    const locationEmbedded = document.getElementById("location-embedded")
+    const signatureValid = document.getElementById("valid-sig")
+    const fileSelector = document.getElementById('file-upload');
+    fileSelector.addEventListener('change', async (event) => {
+        const fileList = event.target.files;
+        if (fileList[0]){
+            const file = fileList[0]
+            const fileSize = file.size;
+            let bytes = await hashFile(file)
+           try{
+            let fileData = await readBinaryFile(file).then((result)=>{
+               return result;
+           })
+            //let resp = await callApi(toHex(bytes))           
+           validHash.innerHTML = "\u2713"
+           
+           const mediainfo = await MediaInfo({ format: 'object'},(mediaInfo)=>{ // Taken from docs
+                mediaInfo.analyzeData(() => file.size, (chunkSize, offset) => {
+                     return new Promise((resolve, reject) => {
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            if (event.target.error) {
+                                 reject(event.target.error)
+                            }
+                            resolve(new Uint8Array(event.target.result))
+                          }
+                          reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize))
+                     })
+                }).then((result) => {
+                     console.log(result)
+                     let tags = result.media.track[0].extra
+                    latitude = tags.LATITUDE
+                    longitude = tags.LONGITUDE
+                     if (latitude && longitude){
+                          locationEmbedded.innerHTML = "\u2713"
+                     }else{
+                          locationEmbedded.innerHTML = "\u2717"
+                     }
+                })
+           });
+           }catch(e){
+           
+           // validHash.innerHTML("&#x2713;")
+            alert("Error: "+e)
+           }
+           
+        }else{
+            alert("No file selected");
+        }
+    });
+
+
+function toHex(buffer) {
+  return Array.prototype.map.call(buffer, x => ('00' + x.toString(16)).slice(-2)).join('');
+}
+
+async function callApi(hash){
+    let resp = await fetch("https://functionsbhlpj3oi-verify-hash.functions.fnc.nl-ams.scw.cloud/", {
+        method: "POST",
+        body: JSON.stringify({hash:hash})})
+        if (resp.ok){
+            return await resp.json();
+        }else{
+            if (resp.status == 401){
+                throw resp.status
+            }else{
+                throw "Your hash is either invalid or has not been submitted via the Decentproof App!"
+            }
+        }   
+}
+
+async function hashFile(file){
+    let result = await readBinaryFile(file)
+    .then(function(result) {
+      result = new Uint8Array(result);
+      return window.crypto.subtle.digest('SHA-256', result);
+    })
+    return new Uint8Array(result)
+}
+
+
+
+function readBinaryFile(file) {
+  return new Promise((resolve, reject) => {
+    var fr = new FileReader();
+    fr.onload = () => {
+      resolve(fr.result)
+    };
+    fr.readAsArrayBuffer(file);
+  });
+}
+    
+</script>
