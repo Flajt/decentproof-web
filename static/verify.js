@@ -4,6 +4,7 @@ const signatureValid = document.getElementById("valid-sig")
 const fileSelector = document.getElementById('file-upload');
 const mcaptchaToken = document.getElementById("mcaptcha__token")
 const submission = document.getElementById("submission")
+const iframe = document.getElementById("mcaptcha-widget__iframe")
 let publicKey;
 
 fileSelector.addEventListener("change", (event) => {
@@ -19,15 +20,15 @@ submission.addEventListener('click', async (event) => {
     if (fileList[0]) {
         const file = fileList[0]
         const fileSize = file.size;
-        let fileData = await readBinaryFile(file)
-        let byteArray = new Uint8Array(fileData);
+        const fileData = await readBinaryFile(file)
+        const byteArray = new Uint8Array(fileData);
         const bytes = await hashFile(byteArray)
         try {
             let resp = await callApi(toHex(bytes), token)
             validHash.innerHTML = "\u2713"
 
             const mediainfo = await MediaInfo({ format: 'object' }, async (mediaInfo) => { // Taken from docs
-                mediaInfo.analyzeData(() => file.size, (chunkSize, offset) => {
+                mediaInfo.analyzeData(() => fileSize, (chunkSize, offset) => {
                     return new Promise((resolve, reject) => {
                         const reader = new FileReader()
                         reader.onload = (event) => {
@@ -82,6 +83,7 @@ submission.addEventListener('click', async (event) => {
                 signatureValid.innerHTML = "\u2717"
             }
             mcaptchaToken.value = ""
+            iframe.src = iframe.src
         } catch (e) {
             alert("Error: " + e)
             window.location.reload()
