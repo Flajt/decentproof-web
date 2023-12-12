@@ -23,7 +23,9 @@ This is a rather basic stack at the moment since it's not big
 ## Structure
 - `static`: Contains all files
 - `static/imgs`: Contains images to be displayed
+  
 <br>
+
 Other files should be self explanatory
 
 ## Feedback and Contributions
