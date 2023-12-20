@@ -24,10 +24,12 @@ submission.addEventListener('click', async (event) => {
         const byteArray = new Uint8Array(fileData);
         const bytes = await hashFile(byteArray)
         try {
-            let resp = await callApi(toHex(bytes), token)
+            const resp = await callApi(toHex(bytes), token)
             validHash.innerHTML = "\u2713"
-
-            const mediainfo = await MediaInfo({ format: 'object' }, async (mediaInfo) => { // Taken from docs
+            if (file.name.includes(".png")) {
+                await extractPNGMetadata(file)
+            }else{
+            const mediainfo = await MediaInfo({ format: 'object',full: true }, async (mediaInfo) => { // Taken from docs
                 mediaInfo.analyzeData(() => fileSize, (chunkSize, offset) => {
                     return new Promise((resolve, reject) => {
                         const reader = new FileReader()
@@ -39,21 +41,26 @@ submission.addEventListener('click', async (event) => {
                         }
                         reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize))
                     })
-                })
-                try {
-                    let tags = mediaInfo.media.track[0].extra
-                    latitude = tags.LATITUDE
-                    longitude = tags.LONGITUDE
-                    if (latitude && longitude) {
-                        locationEmbedded.innerHTML = "\u2713"
-                    } else {
+                }).then((mediaInfo)=>{
+                    try {
+                        const tags = mediaInfo.media.track[0].extra
+                        latitude = tags.latitude
+                        longitude = tags.longitude
+                        if (latitude==null || longitude == null) {
+                            latitude = tags.LATITUDE
+                            longitude = tags.LONGITUDE
+                        }
+                        if (latitude && longitude) {
+                            locationEmbedded.innerHTML = "\u2713"
+                        } else {
+                            locationEmbedded.innerHTML = "\u2717"
+                        }
+                    } catch (e) {
                         locationEmbedded.innerHTML = "\u2717"
                     }
-                } catch (e) {
-                    locationEmbedded.innerHTML = "\u2717"
-                }
 
-            })
+            })})
+        }
             if (publicKey == undefined) {
                 let req = await fetch("/publickey")
                 if (req.ok) {
@@ -69,14 +76,12 @@ submission.addEventListener('click', async (event) => {
             }
             //const timeStamps = resp.data.timestamps
             const hashString = resp.data.hash_string
-            console.log(hashString)
             if (hashString !== toHex(bytes)) {
                 validHash.innerHTML = "\u2717"
             } else {
                 validHash.innerHTML = "\u2713"
             }
             const result = await validateSignature(publicKey, signature, hashString)
-            console.log("Valid signature: " + result)
             if (result) {
                 signatureValid.innerHTML = "\u2713"
             } else {
@@ -94,6 +99,19 @@ submission.addEventListener('click', async (event) => {
     }
 });
 
+async function extractPNGMetadata(file) {
+    try{
+    const {latitude, longitude} = await exifr.gps(file)
+    if (latitude && longitude) {
+        locationEmbedded.innerHTML = "\u2713"
+    } else {
+        locationEmbedded.innerHTML = "\u2717"
+
+    }
+    }catch(e){
+        locationEmbedded.innerHTML = "\u2717"
+    }
+}
 
 function toHex(buffer) {
     return Array.prototype.map.call(buffer, x => ('00' + x.toString(16)).slice(-2)).join('');
@@ -112,7 +130,6 @@ async function callApi(hash, token) {
         if (resp.status == 401) {
             throw resp.status
         } else {
-            console.log(resp)
             throw "Your hash is either invalid or has not been submitted via the Decentproof App!"
         }
     }
@@ -126,7 +143,6 @@ async function hashFile(byteArray) {
 async function validateSignature(key, signature, hash) {
     const importedKey = importPublicKey(key)
     const result = importedKey.verifyWithMessageHash(hash, signature)
-    console.log(result)
     return result
 
 }
