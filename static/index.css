@@ -6,7 +6,12 @@
 body {
   height: 100vh;
 }
-
+p{
+  display: flex;
+  font-size: 25px;
+  justify-content: center;
+  align-items: center;
+}
 .grid{
   max-width: 100%;
     display: grid;
@@ -63,6 +68,12 @@ body {
 
 .social a{
     margin: 8px;
+}
+
+
+a.disabled {
+  pointer-events: none;
+  color: #ccc;
 }
 
 h1{
